@@ -30,6 +30,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Latest Stable Rust & Cargo
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -47,7 +50,7 @@ jobs:
             gawk git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
             zip zlib1g-dev python3 python3-pip
 
-      - name: Build Kodi Dependencies (Host Tools First)
+      - name: Build Kodi Dependencies
         run: |
           TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
 
@@ -61,10 +64,7 @@ jobs:
             --with-tarballs=$HOME/kodi-tarballs \
             --enable-debug=no
 
-          # CRUCIAL: Build native host tools first without race conditions
           make -C native
-
-          # Build cross-compiled target libraries
           make -C target -j$(nproc)
 
       - name: Configure CMake for Stripped Build
