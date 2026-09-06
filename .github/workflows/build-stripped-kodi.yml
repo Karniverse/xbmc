@@ -39,16 +39,15 @@ jobs:
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Install System Dependencies
+      - name: Install Host Dependencies
         run: |
-          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            autoconf automake bison build-essential curl default-jdk flex gawk \
-            git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
-            zip zlib1g-dev python3 python3-pip libc6:i386 libstdc++6:i386 zlib1g:i386
+            autoconf automake bison build-essential cmake curl default-jdk flex \
+            gawk git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
+            zip zlib1g-dev python3 python3-pip
 
-      - name: Build Kodi Native & Cross Dependencies
+      - name: Build Kodi Dependencies (Host Tools First)
         run: |
           TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
 
@@ -62,7 +61,11 @@ jobs:
             --with-tarballs=$HOME/kodi-tarballs \
             --enable-debug=no
 
-          make -j$(nproc)
+          # CRUCIAL: Build native host tools first without race conditions
+          make -C native
+
+          # Build cross-compiled target libraries
+          make -C target -j$(nproc)
 
       - name: Configure CMake for Stripped Build
         run: |
