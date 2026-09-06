@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_arch:
-        description: 'Android Target Architecture'
+        description: 'Target Architecture'
         required: true
         default: 'arm'
         type: choice
@@ -30,35 +30,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Build Host Dependencies
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK & Build Tools
         run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Install System Dependencies
+        run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             autoconf automake bison build-essential curl default-jdk flex gawk \
             git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
-            zip zlib1g-dev python3 python3-pip
-
-      - name: Set up Android NDK & SDK
-        run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          curl -sLo cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
-          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-          rm cmdline-tools.zip
-
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
-
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+            zip zlib1g-dev python3 python3-pip libc6:i386 libstdc++6:i386 zlib1g:i386
 
       - name: Build Kodi Native & Cross Dependencies
         run: |
           TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
-          
+
           cd tools/depends
           ./bootstrap
           ./configure \
@@ -68,14 +61,12 @@ jobs:
             --prefix=$HOME/kodi-deps \
             --with-tarballs=$HOME/kodi-tarballs \
             --enable-debug=no
-            
+
           make -j$(nproc)
 
-      - name: Generate CMake Toolchain & Configure Stripped Build
+      - name: Configure CMake for Stripped Build
         run: |
-          # Generate the toolchain via Kodi's internal depend sys
           make -C tools/depends/target/cmakebuildsys BUILD_DIR=$HOME/kodi-build
-
           cd $HOME/kodi-build
           cmake . \
             -DCMAKE_BUILD_TYPE=Release \
@@ -89,21 +80,17 @@ jobs:
             -DENABLE_EVENTCLIENTS=OFF \
             -DENABLE_TESTING=OFF
 
-      - name: Compile Core Binary
+      - name: Compile and Package APK
         run: |
           cd $HOME/kodi-build
           make -j$(nproc)
 
-      - name: Create Signing Key & Package APK
-        run: |
           mkdir -p ~/.android
           keytool -genkey -keystore ~/.android/debug.keystore \
             -v -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" \
             -keypass android -storepass android -keyalg RSA -keysize 2048 -validity 10000
 
-          cd $HOME/kodi-build
           make apk
-
           mkdir -p $GITHUB_WORKSPACE/output
           find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/output/ \;
 
