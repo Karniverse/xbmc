@@ -39,6 +39,10 @@ jobs:
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+  # This will automatically pull the latest stable with newer Cargo
+
       - name: Install Host Dependencies
         run: |
           sudo apt-get update
