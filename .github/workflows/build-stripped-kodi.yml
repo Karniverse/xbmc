@@ -41,6 +41,11 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        
+      - name: Clear Cargo Cache
+        run: |
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/registry/index
   # This will automatically pull the latest stable with newer Cargo
 
       - name: Install Host Dependencies
