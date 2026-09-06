@@ -30,9 +30,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Latest Stable Rust & Cargo
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -50,6 +47,18 @@ jobs:
             gawk git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
             zip zlib1g-dev python3 python3-pip
 
+      # --- RESUME / CACHE STEP ---
+      - name: Cache Kodi Dependencies and Tarballs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/kodi-deps
+            ~/kodi-tarballs
+            ~/kodi-build
+          key: kodi-deps-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/Makefile*') }}
+          restore-keys: |
+            kodi-deps-${{ github.event.inputs.target_arch }}-
+
       - name: Build Kodi Dependencies
         run: |
           TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
@@ -62,7 +71,8 @@ jobs:
             --with-ndk-path=$ANDROID_NDK_HOME \
             --prefix=$HOME/kodi-deps \
             --with-tarballs=$HOME/kodi-tarballs \
-            --enable-debug=no
+            --enable-debug=no \
+            --disable-rav1e
 
           make -C native
           make -C target -j$(nproc)
