@@ -1,0 +1,114 @@
+name: Build Stripped Kodi Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_arch:
+        description: 'Target Architecture'
+        required: true
+        default: 'arm'
+        type: choice
+        options:
+          - arm
+          - aarch64
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK & Build Tools
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Install Host Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf automake bison build-essential cmake curl default-jdk flex \
+            gawk git gperf libcurl4-openssl-dev libssl-dev libtool nasm unzip yasm \
+            zip zlib1g-dev python3 python3-pip
+
+      # --- RESUME / CACHE STEP ---
+      - name: Cache Kodi Dependencies and Tarballs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/kodi-deps
+            ~/kodi-tarballs
+            ~/kodi-build
+          key: kodi-deps-v2-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/Makefile*') }}
+          restore-keys: |
+            kodi-deps-v2-${{ github.event.inputs.target_arch }}-
+
+      - name: Build Kodi Dependencies
+        run: |
+          TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
+
+          cd tools/depends
+          ./bootstrap
+          ./configure \
+            --host=$TARGET_HOST \
+            --with-sdk-path=$ANDROID_HOME \
+            --with-ndk-path=$ANDROID_NDK_HOME \
+            --prefix=$HOME/kodi-deps \
+            --with-tarballs=$HOME/kodi-tarballs \
+            --enable-debug=no \
+            --disable-rav1e
+
+          make -C native
+          make -C target -j$(nproc)
+
+      - name: Configure CMake for Stripped Build
+        run: |
+          make -C tools/depends/target/cmakebuildsys BUILD_DIR=$HOME/kodi-build
+          cd $HOME/kodi-build
+          cmake . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_INTERNAL_FFMPEG=ON \
+            -DENABLE_SMBCLIENT=ON \
+            -DENABLE_INTERNAL_NFS=ON \
+            -DENABLE_UPNP=ON \
+            -DENABLE_OPTICAL=OFF \
+            -DENABLE_DVDCSS=OFF \
+            -DENABLE_BLURAY=OFF \
+            -DENABLE_AIRTUNES=OFF \
+            -DENABLE_AIRPLAY=OFF \
+            -DENABLE_EVENTCLIENTS=OFF \
+            -DENABLE_TESTING=OFF
+
+      - name: Compile and Package APK
+        run: |
+          cd $HOME/kodi-build
+          make -j$(nproc)
+
+          mkdir -p ~/.android
+          keytool -genkey -keystore ~/.android/debug.keystore \
+            -v -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" \
+            -keypass android -storepass android -keyalg RSA -keysize 2048 -validity 10000
+
+          make apk
+          mkdir -p $GITHUB_WORKSPACE/output
+          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/output/ \;
+
+      - name: Upload Stripped Kodi APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodi-21-omega-stripped-quartz-${{ github.event.inputs.target_arch }}
+          path: output/*.apk
+          retention-days: 7

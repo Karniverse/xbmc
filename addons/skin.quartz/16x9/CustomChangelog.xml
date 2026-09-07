@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog" id="1105">
+	<defaultcontrol>61</defaultcontrol>
+	<controls>
+		<control type="group">
+			<include>DialogOpenClose</include>
+			<control type="image">
+				<centerleft>960</centerleft>
+				<centertop>540</centertop>
+				<width>1720</width>
+				<height>940</height>
+				<texture border="128">img/DialogCE.png</texture>
+			</control>
+			<control type="group">
+				<control type="label" description="Header">
+					<posy>120</posy>
+					<centerleft>960</centerleft>
+					<align>center</align>
+					<width>1720</width>
+					<height>45</height>
+					<textcolor>HL</textcolor>
+					<label>[CAPITALIZE]$LOCALIZE[31006][/CAPITALIZE] [LOWERCASE]$LOCALIZE[24036][/LOWERCASE]</label>
+				</control>
+				<control type="textbox" id="5" description="Textarea">
+					<posy>220</posy>
+					<centerleft>960</centerleft>
+					<width>1520</width>
+					<height>706</height>
+					<font>size16</font>
+					<align>left</align>
+					<include>ChangeLogText</include>
+				</control>
+				<control type="scrollbar" id="61">
+					<posx>1752</posx>
+					<posy>230</posy>
+					<height>690</height>
+					<onleft>61</onleft>
+					<onright>61</onright>
+					<ondown>61</ondown>
+					<onup>61</onup>
+					<showonepage>false</showonepage>
+				</control>
+			</control>
+		</control>
+	</controls>
+</window>
