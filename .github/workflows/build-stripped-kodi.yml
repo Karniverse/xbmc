@@ -73,6 +73,15 @@ jobs:
             --enable-debug=no \
             --disable-rav1e
 
+          PLATFORM_NAME="$TARGET_HOST-24-release"
+          NATIVE_PLATFORM="x86_64-linux-gnu-native"
+          if [ -f "$HOME/kodi-deps/$PLATFORM_NAME/share/Toolchain.cmake" ]; then
+            echo "Dependencies restored from cache. Generating stamp files to skip rebuild..."
+            for d in native/*/; do touch "$d/.installed-$NATIVE_PLATFORM" 2>/dev/null || true; done
+            for d in target/*/; do touch "$d/.installed-$PLATFORM_NAME" 2>/dev/null || true; done
+            touch "target/.installed-$PLATFORM_NAME"
+          fi
+
           make -C native
           make -C target -j$(nproc)
 
@@ -88,21 +97,8 @@ jobs:
 
       - name: Configure CMake for Stripped Build
         run: |
-          make -C tools/depends/target/cmakebuildsys BUILD_DIR=$HOME/kodi-build
-          cd $HOME/kodi-build
-          cmake . \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DENABLE_INTERNAL_FFMPEG=ON \
-            -DENABLE_SMBCLIENT=ON \
-            -DENABLE_INTERNAL_NFS=ON \
-            -DENABLE_UPNP=ON \
-            -DENABLE_OPTICAL=OFF \
-            -DENABLE_DVDCSS=OFF \
-            -DENABLE_BLURAY=OFF \
-            -DENABLE_AIRTUNES=OFF \
-            -DENABLE_AIRPLAY=OFF \
-            -DENABLE_EVENTCLIENTS=OFF \
-            -DENABLE_TESTING=OFF
+          make -C tools/depends/target/cmakebuildsys BUILD_DIR=$HOME/kodi-build \
+            CMAKE_EXTRA_ARGUMENTS="-DENABLE_INTERNAL_FFMPEG=OFF -DENABLE_SMBCLIENT=ON -DENABLE_INTERNAL_NFS=ON -DENABLE_UPNP=ON -DENABLE_OPTICAL=OFF -DENABLE_DVDCSS=OFF -DENABLE_BLURAY=OFF -DENABLE_AIRTUNES=OFF -DENABLE_AIRPLAY=OFF -DENABLE_EVENTCLIENTS=OFF -DENABLE_TESTING=OFF"
 
       - name: Compile and Package APK
         run: |
@@ -116,7 +112,8 @@ jobs:
 
           make apk
           mkdir -p $GITHUB_WORKSPACE/output
-          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/output/ \;
+          find $HOME/kodi-build $GITHUB_WORKSPACE -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/output/ \;
+
 
       - name: Upload Stripped Kodi APK
         uses: actions/upload-artifact@v4
