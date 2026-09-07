@@ -45,18 +45,19 @@ jobs:
             zip zlib1g-dev python3 python3-pip
 
       # --- RESUME / CACHE STEP ---
-      - name: Cache Kodi Dependencies and Tarballs
-        uses: actions/cache@v4
+      - name: Restore Kodi Dependencies and Tarballs
+        id: cache-deps
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/kodi-deps
             ~/kodi-tarballs
-            ~/kodi-build
-          key: kodi-deps-v4-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/Makefile*') }}
+          key: kodi-deps-v5-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/**') }}
           restore-keys: |
-            kodi-deps-v4-${{ github.event.inputs.target_arch }}-
+            kodi-deps-v5-${{ github.event.inputs.target_arch }}-
 
       - name: Build Kodi Dependencies
+        id: build-deps
         run: |
           TARGET_HOST="${{ github.event.inputs.target_arch == 'aarch64' && 'aarch64-linux-android' || 'arm-linux-androideabi' }}"
 
@@ -66,6 +67,7 @@ jobs:
             --host=$TARGET_HOST \
             --with-sdk-path=$ANDROID_HOME \
             --with-ndk-path=$ANDROID_NDK_HOME \
+            --with-ndk-api=24 \
             --prefix=$HOME/kodi-deps \
             --with-tarballs=$HOME/kodi-tarballs \
             --enable-debug=no \
@@ -73,6 +75,16 @@ jobs:
 
           make -C native
           make -C target -j$(nproc)
+
+      - name: Save Kodi Dependencies Cache
+        uses: actions/cache/save@v4
+        if: always() && steps.build-deps.conclusion == 'success' && steps.cache-deps.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/kodi-deps
+            ~/kodi-tarballs
+          key: kodi-deps-v5-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/**') }}
+
 
       - name: Configure CMake for Stripped Build
         run: |
