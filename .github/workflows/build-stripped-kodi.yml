@@ -52,9 +52,9 @@ jobs:
             ~/kodi-deps
             ~/kodi-tarballs
             ~/kodi-build
-          key: kodi-deps-v3-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/Makefile*') }}
+          key: kodi-deps-v4-${{ github.event.inputs.target_arch }}-${{ hashFiles('tools/depends/Makefile*') }}
           restore-keys: |
-            kodi-deps-v3-${{ github.event.inputs.target_arch }}-
+            kodi-deps-v4-${{ github.event.inputs.target_arch }}-
 
       - name: Build Kodi Dependencies
         run: |

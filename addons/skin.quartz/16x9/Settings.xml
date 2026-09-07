@@ -73,15 +73,7 @@
 							<label>$LOCALIZE[14200]</label>
 							<onclick>activatewindow(PlayerSettings)</onclick>
 						</item>
-						<item id="11" description="Games">
-							<label>$LOCALIZE[15016]</label>
-							<onclick>ActivateWindow(GameSettings)</onclick>
-							<visible>System.GetBool(gamesgeneral.enable)</visible>
-						</item>
-						<item id="6" description="PVR">
-							<label>$LOCALIZE[14204]</label>
-							<onclick>activateWindow(PVRSettings)</onclick>
-						</item>
+
 						<item id="4" description="Service">
 							<label>$LOCALIZE[24018]</label>
 							<onclick>activatewindow(ServiceSettings)</onclick>
